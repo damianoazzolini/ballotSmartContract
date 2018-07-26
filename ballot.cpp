@@ -1,29 +1,35 @@
-#include <ballot.hpp>
+#include <ballot.hpp> // meglio con " "
 
-void ballot::hello(account_name account) {
-	print("Hello ", name{account});
+void ballot::init(account_name applicationKey) {
+	require_auth(_self);
+	require_auth(applicationKey);
+	unfreezeElection();
 }
 
-void ballot::create(const account_name account, const string username, const string bio, uint32_t age) {
-	require_auth(account); //controllare anche require_auth2
-	// controllo se non esiste già
-	// contracte code e scope come parametri
-	profile_table profile(_self,_self);
+void ballot::addCandidate(const account_name name, const account_name surname, const string id, const account_name granter) {
 
-	auto itr = profile.find(account); // restituisce un iterator
+}
 
-	// uso assert che automaticamente cancella la transazione e rollback di tutto
-	eosio_assert(itr == profile.end(), "Account already has a profile");
+void ballot::addVoter(const account_name name, const account_name surname, string vote, const account_name granter) {
 
-	// funzione lambda
-	// & prende tutte le variabili definite nello scope e 
-	// le passa per riferimento
-	profile.emplace(account, [&](auto& p) {
-		p.account = account;
-		p.username = username;
-		p.bio = bio;
-		p.age = age;
-	}); 
+}
 
-	print(name{account}, "profile created");
+void ballot::freezeElection(const account_name granter) {
+	require_auth(granter);
+	ballot::freezed = true;
+}
+
+void ballot::unfreezeElection(const account_name granter) {
+	require_auth(granter);
+	ballot::freezed = false;
+}
+
+bool ballot::isFreezed(const account_name granter) {
+	require_auth(granter);
+	return ballot::freezed;
+}
+
+void ballot::countVotes(const account_name granter) {
+	require_auth(granter);
+	eosio_assert(isFreezed == true, "Elezione Terminata");
 }

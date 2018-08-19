@@ -3,7 +3,7 @@
 void ballot::init(account_name applicationKey) {
 	require_auth(_self);
 	require_auth(applicationKey);
-	unfreezeElection();
+	unfreezeElection(_self);
 }
 
 void ballot::addCandidate(const account_name name, const account_name surname, const string id, const account_name granter) {
@@ -16,20 +16,16 @@ void ballot::addVoter(const account_name name, const account_name surname, strin
 
 void ballot::freezeElection(const account_name granter) {
 	require_auth(granter);
-	ballot::freezed = true;
+	freezed = true;
 }
 
 void ballot::unfreezeElection(const account_name granter) {
 	require_auth(granter);
-	ballot::freezed = false;
+	freezed = false;
 }
 
-bool ballot::isFreezed(const account_name granter) {
-	require_auth(granter);
-	return ballot::freezed;
-}
 
 void ballot::countVotes(const account_name granter) {
 	require_auth(granter);
-	eosio_assert(isFreezed == true, "Elezione Terminata");
+	eosio_assert(freezed == true, "Elezione Terminata");
 }

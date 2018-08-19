@@ -39,13 +39,11 @@ class ballot : public contract {
 		// @abi action
 		void unfreezeElection(const account_name granter);
 
-		// @abi action
-		bool isFreezed(const account_name granter);
 
 		// @abi action
 		void countVotes(const account_name granter); 
 
-		// come faccio ad autenticare chu crea l'elezione?
+		// come faccio ad autenticare chi crea l'elezione?
 		// devo fare in modo che abbia una chiave nascosta 
 		// che deve caricare ogni volta che effettua un'azione
 		// posso farlo con un wallet diverso
@@ -58,7 +56,7 @@ class ballot : public contract {
 		// TODO permettere che si possa modificare solamente
 		// una volta (una volta terminata l'elezione non può
 		// più essere riaperta)
-		static bool freezed = false;
+		bool freezed = false;
 
 		// @abi table voters i64
 		struct Voter {
@@ -85,4 +83,4 @@ class ballot : public contract {
 		typedef eosio::multi_index<N(candidates), Candidate> candidates_table;
 };
 
-EOSIO_ABI(ballot, (init)(addCandidate)(addVoter)(freezeElection)(unfreezeElection)(isFreezed)(countVotes))
+EOSIO_ABI(ballot, (init)(addCandidate)(addVoter)(freezeElection)(unfreezeElection)(countVotes))

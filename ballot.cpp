@@ -29,6 +29,7 @@ void ballot::init(account_name appKey) {
     print("Contract Initialized by ", name{appKey});
 }
 
+// TODO semplificare
 void ballot::addmember(account_name account, account_name granter,
                        uint32_t     weight, bool invite_permission) {
     // require_auth(appKey());
@@ -125,7 +126,9 @@ void ballot::rmproposal(account_name proposal_owner, const string& title) {
 }
 */
 
-void ballot::addvote(account_name voter, const string& proposal_title, const string& vote) {
+// era addvote
+// TODO aggiungere metodo per bloccare la votazione
+void ballot::vote(account_name voter, const string& proposal_title, const string& vote) {
     // require_auth(appKey());
     // require_auth(voter);
 

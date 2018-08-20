@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 	mpz_mod(cypher,v3,nquadro);
 	
 	strcpy(result,mpz_get_str(NULL,10,cypher));
-	printf("Risultato cifratura: %s\n",result);
+	printf("%s\n",result);
 	
 	mpz_clear(v0);
 	mpz_clear(v1);

@@ -1,86 +1,130 @@
 #include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
-#include <string>
+#include <eosiolib/singleton.hpp>
+#include <eosiolib/crypto.h>
 
-using namespace eosio;
 using namespace std;
+using namespace eosio;
 
-//classe che eredita da eosio::contract
 class ballot : public contract {
-	public:
-		// costruttore
-		ballot(account_name self) : contract(self) {}
+public:
+    // Constuct an instance of both the Members multi_index
+    // and the Proposals multi_index with in the context of the
+    // contracts scope itself
+    ballot(account_name _self) :
+          contract(_self),
+          Members(_self, _self),
+          Tablevotes(_self, _self),
+          Proposals(_self, _self) {}
 
-		// @abi action
-		void init(account_name applicationKey);
-		// inizializzo il voto con la chiave "master"
-		
-		// @abi action
-		void addCandidate(
-			const account_name name, 
-			const account_name surname, 
-			const string id, 
-			const account_name granter);
-		// creo un candidato
-		// granter è colui che inserisce il nome, deve essere validato
+    static constexpr uint64_t code = N(ballot);
 
-		// @abi action
-		void addVoter(
-			const account_name name,
-			const account_name surname,
-			string vote,
-			const account_name granter
-		);
-		// creo un votante
+    // @abi action
+    void init(account_name appKey);
 
-		// @abi action
-		void freezeElection(const account_name granter);
+    // @abi action
+    void addmember(account_name  account, account_name granter,
+                   uint32_t     weight, bool invite_permission);
 
-		// @abi action
-		void unfreezeElection(const account_name granter);
+    // @abi action
+    // void rmmember(account_name account);
 
+    // @abi action
+    void propose(account_name proposer, const string& title, const string& description);
 
-		// @abi action
-		void countVotes(const account_name granter); 
+    // @abi action
+    // void rmproposal(account_name proposal_owner, const string& title);
 
-		// come faccio ad autenticare chi crea l'elezione?
-		// devo fare in modo che abbia una chiave nascosta 
-		// che deve caricare ogni volta che effettua un'azione
-		// posso farlo con un wallet diverso
-		// wallet master -> solo chiavi di chi ha tutti i permessi
-		// wallet votanti -> tutte le chiavi dei vontanti
-		// il master è sempre bloccato e la password la sa solo uno
+    // @abi action
+    void addvote(account_name voter, const string& proposal_title, const string& vote);
 
-	private:
-		// boolean col quale controllo tutte le elezioni
-		// TODO permettere che si possa modificare solamente
-		// una volta (una volta terminata l'elezione non può
-		// più essere riaperta)
-		bool freezed = false;
+    // @abi action
+    // void rmvote(account_name voter, const string& proposal_title);
 
-		// @abi table voters i64
-		struct Voter {
-			string name;
-			string surname;
-			uint64_t id;
-			uint64_t vote; // cotiene l'id del candidato votato
+    // @abi action
+    void countvotes(const string& proposal_title);
 
-			auto primary_key() const { return id; }
-			EOSLIB_SERIALIZE(Voter, (name)(surname)(id)(vote))
-		};
+private:
+    /* TODO: Since a vote is basically a key value pair (name, vote)
+    *        consider changing the vector to a 'map' */
+    struct Vote {
+        uint64_t     vote;
+        account_name voter_name;
+    };
 
-		// @abi table candidates i64
-		struct Candidate {
-			string name;
-			string surname;
-			uint64_t id;
+    // @abi table members i64
+    struct Member {
+        uint64_t     member_id;
+        account_name account;
+        uint64_t     weight = 1;
+        account_name granter;
+        bool         invite_permission = false;
 
-			auto primary_key() const { return id; }
-			EOSLIB_SERIALIZE(Candidate, (name)(surname)(id))
-		};
+        uint64_t primary_key() const { return member_id; }
+        EOSLIB_SERIALIZE(Member, (member_id)(account)(weight)(granter)(invite_permission))
+    };
 
-		typedef eosio::multi_index<N(voters), Voter> voters_table;
-		typedef eosio::multi_index<N(candidates), Candidate> candidates_table;
+    // @abi table proposals i64
+    struct Proposal {
+        uint64_t     id;
+        account_name account;
+        string       title;
+        string       description;
+        vector<Vote> votes;
+        bool         approved = false;
+
+        uint64_t primary_key() const { return id; }
+        EOSLIB_SERIALIZE(Proposal, (id)(account)(title)(description)(votes)(approved))
+    };
+
+    // @abi table settings i64
+    struct Settings {
+        account_name            appKey;
+
+        uint64_t primary_key() const { return 0; }
+        EOSLIB_SERIALIZE( Settings, (appKey) )
+    };
+    
+    // creo una tabella per contenere solo i voti
+    
+    // @abi table tablevotes i64
+    struct Tablevote {
+    	uint64_t id; 
+    	string vote;
+    	account_name voter;
+    	
+    	uint64_t primary_key() const { return id; }
+    	EOSLIB_SERIALIZE(Tablevote, (id)(vote)(voter))
+    };
+
+	multi_index<N(tablevotes), Tablevote>		   Tablevotes;
+	
+    multi_index<N(members), Member>                Members;
+    multi_index<N(proposals), Proposal>            Proposals;
+
+    typedef singleton<N(settings), Settings>  BallotSettings;
+
+/*    inline Member get_member(account_name voter);*/
+
+/*    inline Member create_member(account_name account,
+                                account_name granter,
+                                uint32_t     weight,
+                                bool         invite_permission);*/
+
+    inline bool check_for_approval(const uint64_t& votes_cast,
+                                   const uint64_t& votes_total,
+                                   const double&   percentage_needed);
+
+    /* HELPER FUNCTIONS */
+    account_name appKey() {
+        return BallotSettings(code,_self).get().appKey;
+    }
+
+    inline static uint64_t murmur( const string& strkey ){
+        return std::hash<string>{}(strkey);
+    }
+
+    inline static uint64_t accountHash( const account_name& key ){
+        return std::hash<uint64_t>{}(key);
+    }
+
 };
-
-EOSIO_ABI(ballot, (init)(addCandidate)(addVoter)(freezeElection)(unfreezeElection)(countVotes))

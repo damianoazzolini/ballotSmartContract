@@ -1,3 +1,0 @@
-Ho creato un account di nome ballot con eosio
-Il wallet è default 
-

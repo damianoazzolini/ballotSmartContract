@@ -1,0 +1,5 @@
+1) inserire nella struttura dove salvo le proposte anche l'indice della stessa
+2) refactor cel codice in encrypt.c e election_result.c utilizzando mpz_init_set_ui al posto di
+	mpz_init e mpz_set_ui
+3) inserire il require_auth
+4) stampare il risultato dell'elezione con i giusti leading zeros (es: 003001 e non 3001).

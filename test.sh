@@ -1,28 +1,6 @@
 #!/bin/bash
 
-CONTRACTNAME="ballot"
-PROPOSEACTION="propose"
-PROPOSEPERMISSION="propose"
-VOTEACTION="addvote"
-VOTEPERMISSION="vote"
-INITACTION="init"
-ADDMEMBERACTION="addmember"
+NOME="votazionea"
+VOTEFIELD="vote"
 
-
-nameC="proposal"
-titolo="proposta "
-descrizione="descrizione proposta "
-
-echo "Numero di votanti (NB: < 5): "
-read nVoters
-
-nameV="voter"
-
-while [ $nVoters -gt 0 ] 
-do
-echo "Inserire indice della proposta da votare (0..n): "
-		read index
-		vote=$(./encrypt $index)
-		let "nVoters=nVoters-1"
-		echo $vote
-done
+cat prova.txt | grep -w -A1 -B1 $NOME | grep -w $VOTEFIELD | sed 's/"vote": "//g' | sed 's/"//g' | tr -d ' ' | tr -d ','

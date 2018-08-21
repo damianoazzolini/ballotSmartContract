@@ -10,50 +10,74 @@ public:
     // Constuct an instance of both the Members multi_index
     // and the Proposals multi_index with in the context of the
     // contracts scope itself
+    
     ballot(account_name _self) :
           contract(_self),
           Members(_self, _self),
           Tablevotes(_self, _self),
-          Proposals(_self, _self) {}
-
+          Proposals(_self, _self),
+          Polls(_self,_self) {}
+	
+	// ballot(account_name _self):contract(_self) {};
+	
     static constexpr uint64_t code = N(ballot);
 
     // @abi action
-    void init(account_name appKey);
+    void init(account_name appKey, const string& name, const string& description);
 
     // @abi action
-    void addmember(account_name account, account_name granter);
+    void addmember(account_name account, account_name granter, const string& pollname);
 
     // @abi action
-    void propose(account_name proposer, const string& title, const string& description);
+    void propose(account_name proposer, const string& title, const string& description, const string& pollname);
 
     // @abi action
-    void vote(account_name voter, const string& proposal_title, const string& vote);
+    void vote(account_name voter, const string& vote, const string& pollname);
+    
+    // @abi action
+    void closepoll(account_name granter, const string& pollname);
+    
+    // TODO
+    // void setwinner(account_name granter, const string& pollname, const string& winner);
 
-
+// TODO aggiungere l'indice della proposta (0..n)
 private:
-
+	// @abi table polls i64
+	struct Poll {
+		uint64_t id;
+		string title;
+		string description;
+		bool is_active = true;
+		account_name winner;
+		
+		auto primary_key() const { return id; }
+		
+		EOSLIB_SERIALIZE(Poll, (id)(title)(description)(is_active)(winner))		
+	};
+	
     // @abi table members i64
     struct Member {
         uint64_t member_id;
         account_name account;
         bool voted = false;
+        string pollname;
 
         uint64_t primary_key() const { return member_id; }
         
-        EOSLIB_SERIALIZE(Member, (member_id)(account))
+        EOSLIB_SERIALIZE(Member, (member_id)(account)(voted)(pollname))
     };
 
     // @abi table proposals i64
     struct Proposal {
-        uint64_t     id;
+        uint64_t id;
         account_name account;
-        string       title;
-        string       description;
-
+        string title;
+        string description;
+		string pollname;
+		
         uint64_t primary_key() const { return id; }
         
-        EOSLIB_SERIALIZE(Proposal, (id)(account)(title)(description))
+        EOSLIB_SERIALIZE(Proposal, (id)(account)(title)(description)(pollname))
     };
 
     // @abi table settings i64
@@ -68,16 +92,18 @@ private:
     // @abi table tablevotes i64
     struct Tablevote {
     	uint64_t id; 
+    	string pollname;
     	string vote;
     	
     	uint64_t primary_key() const { return id; }
     	
-    	EOSLIB_SERIALIZE(Tablevote, (id)(vote))
+    	EOSLIB_SERIALIZE(Tablevote, (id)(vote)(pollname))
     };
 
 	multi_index<N(tablevotes), Tablevote> Tablevotes;
     multi_index<N(members), Member> Members;
     multi_index<N(proposals), Proposal> Proposals;
+    multi_index<N(polls),Poll> Polls;
 
     typedef singleton<N(settings), Settings>  BallotSettings;
 

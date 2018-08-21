@@ -9,7 +9,10 @@ int main(int argc, char **argv) {
 		printf("Usage: ./encrypt <vote_number>\n");
 		exit(-1);
 	}
-
+	
+	time_t now = time(0);
+	srand((unsigned int)time(&now));
+	
 	// pt e qt sono i due primi	
 	int pt = 179426549;
 	int qt = 179426491;

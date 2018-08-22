@@ -1,5 +1,5 @@
 #include <eosiolib/eosio.hpp>
-#include <eosiolib/singleton.hpp>
+// #include <eosiolib/singleton.hpp>
 #include <eosiolib/crypto.h>
 
 using namespace std;
@@ -20,10 +20,10 @@ public:
 	
 	// ballot(account_name _self):contract(_self) {};
 	
-    static constexpr uint64_t code = N(ballot);
+    // static constexpr uint64_t code = N(ballot);
 
     // @abi action
-    void init(account_name appKey, const string& name, const string& description);
+    void init(account_name granter, const string& pollname, const string& description);
 
     // @abi action
     void addmember(account_name account, account_name granter, const string& pollname);
@@ -37,10 +37,10 @@ public:
     // @abi action
     void closepoll(account_name granter, const string& pollname);
     
-    // TODO
-    // void setwinner(account_name granter, const string& pollname, const string& winner);
+    // @abi action
+    void setwinner(account_name granter, const string& pollname, uint64_t winner_proposal_index);
 
-// TODO aggiungere l'indice della proposta (0..n)
+
 private:
 	// @abi table polls i64
 	struct Poll {
@@ -48,11 +48,12 @@ private:
 		string title;
 		string description;
 		bool is_active = true;
-		account_name winner;
+		bool is_winner_set = false;
+		uint64_t winner_proposal_index;
 		
 		auto primary_key() const { return id; }
 		
-		EOSLIB_SERIALIZE(Poll, (id)(title)(description)(is_active)(winner))		
+		EOSLIB_SERIALIZE(Poll, (id)(title)(description)(is_active)(is_winner_set)(winner_proposal_index))		
 	};
 	
     // @abi table members i64
@@ -74,26 +75,31 @@ private:
         string title;
         string description;
 		string pollname;
+		uint64_t index;
+		// ho un id ed un index perché tutte le proposte sono salvate nella stessa 
+		// tabella quindi hanno tutte un id diverso. Index invece rappresenta
+		// l'indice della proposta all'interno della votazione corrente
 		
         uint64_t primary_key() const { return id; }
         
-        EOSLIB_SERIALIZE(Proposal, (id)(account)(title)(description)(pollname))
+        EOSLIB_SERIALIZE(Proposal, (id)(account)(title)(description)(pollname)(index))
     };
 
-    // @abi table settings i64
+	/*
     struct Settings {
         account_name            appKey;
 
         uint64_t primary_key() const { return 0; }
         EOSLIB_SERIALIZE( Settings, (appKey) )
     };
+    */
     
     // creo una tabella per contenere solo i voti
     // @abi table tablevotes i64
     struct Tablevote {
     	uint64_t id; 
-    	string pollname;
     	string vote;
+    	string pollname;
     	
     	uint64_t primary_key() const { return id; }
     	
@@ -105,7 +111,10 @@ private:
     multi_index<N(proposals), Proposal> Proposals;
     multi_index<N(polls),Poll> Polls;
 
-    typedef singleton<N(settings), Settings>  BallotSettings;
+    // typedef singleton<N(settings), Settings>  BallotSettings;
+    
+    // TODO non esistono le variabili di stato quindi devo mettere l'indice a mano
+    uint64_t index_proposal = 0;
 
 
     inline static uint64_t stringHash( const string& strkey ){

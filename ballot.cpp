@@ -1,51 +1,50 @@
 #include "ballot.hpp"
 
 // OK TESTED
-void ballot::init(account_name appKey, const string& name, const string& description) {
-    // require_auth(appKey);
+void ballot::init(account_name granter, const string& pollname, const string& description) {
+    require_auth(granter);
     
-    /* First Member Ever Created */
-    uint64_t id = accountHash(appKey);
-
-    /* Instantiate the BallotSettings Singleton */
-    // BallotSettings(code, _self).set(Settings{appKey}, _self);
-
-    /* Emplce the first member; the creator */
-    /* 
-    auto creator = Members.emplace(_self, [&](auto& m) {
-        m.member_id = id;
-        m.account = appKey;
-        m.voted = false;
-    });
-    */
-    
-    auto current_poll = Polls.find(stringHash(name));
+    auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll == Polls.end(), "Poll already exists");  
     
     Polls.emplace(_self, [&](auto& p) {
-    	p.id = stringHash(name);
-    	p.title = name;
+    	p.id = stringHash(pollname);
+    	p.title = pollname;
     	p.description = description;
     	p.is_active = true;
+    });
+    print("Poll initialized ", pollname);
+    
+    uint64_t id = stringHash(to_string(granter)+pollname);
+    /*
+    Dovrei inserire il granter come nuovo member senza inline action perché
+    addmember richiede che il granter esista già
+    */
+    Members.emplace(_self, [&](auto& m) {
+        m.member_id = id;
+        m.account = granter;
+        m.voted = false;
+        m.pollname = pollname;
     });
 
 	// inline action
 	// action(permissionlevel, contract_deployer, action, data)
 	// action(vector<permission_level>(),N(ballot),N(addmember), make_tuple(appKey,appKey)).send();
 
-    print("Poll initialized ", name);
+    print("\nGranter ", name{granter}, " created for ", pollname);
 }
 
 // OK test
 void ballot::addmember(account_name account, account_name granter, const string& pollname) {
-    // richiedo solo l'autrizzazione del èroprietario del contratto
-    // require_auth(granter);
+    require_auth(granter);
     // require_auth(account);
 
 	// chiave primaria concatenazione account e pollname 
 	// per poter avere lo stesso account in due poll
-    uint64_t id = accountHash(account+pollname);
-    uint64_t granter_id = accountHash(granter);
+	// devo convertire in stringhe poi riconvertire in uint64_t 
+	// per evitare overflow facendo la somma account+stringHash(pollname)
+    uint64_t id = stringHash(to_string(account)+pollname);
+    uint64_t granter_id = stringHash(to_string(granter)+pollname);
     
     auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll != Polls.end(), "Poll does not exist");
@@ -75,8 +74,8 @@ void ballot::addmember(account_name account, account_name granter, const string&
 void ballot::propose(account_name proposer, const string& title, const string& description, const string& pollname) {
     // require_auth(proposer);
 
-    uint64_t proposer_id = accountHash(proposer);
-    uint64_t proposal_id = stringHash(title);
+    uint64_t proposer_id = stringHash(to_string(proposer)+pollname);
+    uint64_t proposal_id = stringHash(title+pollname);
     
     auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll != Polls.end(), "Poll does not exist");
@@ -94,24 +93,23 @@ void ballot::propose(account_name proposer, const string& title, const string& d
         p.title = title;
         p.description = description;
         p.pollname = pollname;
+        p.index = this->index_proposal;
     });
 
-	print("Created new proposal for ", pollname, " called ", title);
+	print("Created new proposal for ", pollname, " called ", title, " index ", this->index_proposal);
+	
+	this->index_proposal++;
 }
 
 // OK test
 void ballot::vote(account_name voter, const string& vote, const string& pollname) {
-    // require_auth(appKey());
     // require_auth(voter);
     
     auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll != Polls.end(), "Poll does not exist");
     eosio_assert(current_poll->is_active == true, "Poll is closed");
 
-    // Find the member 'voter'
-    // string proposal = proposal_title+pollname;
-    uint64_t voter_id = accountHash(voter);
-    // uint64_t proposal_id = stringHash(proposal);
+    uint64_t voter_id = stringHash(to_string(voter)+pollname);
 
     auto member = Members.find(voter_id);
     eosio_assert(member != Members.end(), "Member does not exist");
@@ -137,19 +135,63 @@ void ballot::vote(account_name voter, const string& vote, const string& pollname
 
 // OK TESTED
 void ballot::closepoll(account_name granter, const string& pollname) {
+	require_auth(granter);
+	
+	uint64_t granter_id = stringHash(to_string(granter)+pollname);
+	auto granter_member = Members.find(granter_id);
+    eosio_assert(granter_member != Members.end(), "Granter does not exist");
+	
 	auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll != Polls.end(), "Poll does not exist");
     
-    // con false non funziona, con true sì
-    // anche se la documentazione dice che la transazione
-    // viene abortita se la condizione è vera
     eosio_assert(current_poll->is_active == true, "Poll is already closed");
 
 	Polls.modify(current_poll, _self, [&](auto& p) {
 		p.is_active = false;
 	});
 	
-	print("Closed ", pollname);	
+	// conto i voti
+	uint64_t vote_number = 0;
+	for(auto vote_iterator = Tablevotes.begin(); vote_iterator != Tablevotes.end(); vote_iterator++) {
+	if(vote_iterator->pollname == pollname)
+		vote_number++;
+	}
+	
+	print("Closed ", pollname, ". Number of votes: ", vote_number);	
 }
 
-EOSIO_ABI( ballot, (init)(addmember)(propose)(vote)(closepoll))
+void ballot::setwinner(account_name granter, const string& pollname, uint64_t winner_proposal_index) {
+	require_auth(granter);
+	
+	uint64_t granter_id = stringHash(to_string(granter)+pollname);
+	auto granter_member = Members.find(granter_id);
+    eosio_assert(granter_member != Members.end(), "Granter does not exist");
+
+	auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist"); 
+    
+    eosio_assert(current_poll->is_winner_set == false, "Winner already set");
+    eosio_assert(current_poll->is_active == true, "Poll stil open");
+    
+    // TODO
+    // controllo se la proposta con quell'indice esiste per quel poll
+    /*
+    auto proposal_itr;
+    for(proposal_itr = Proposals.begin(); proposal_itr != Proposals.end(); proposal_itr++) {
+    	if((proposal_itr->index == winner_proposal_index) && (proposal_itr->pollname == pollname))
+    		break;
+    }
+    
+    
+    eosio_assert(proposal_itr != Proposals.end(), "Proposal with selected index does not exist for this poll");
+    */
+    
+    Polls.modify(current_poll, _self, [&](auto& p) {
+		p.is_winner_set = true;
+		p.winner_proposal_index = winner_proposal_index;
+	});
+	
+	print("Winner set for poll ", pollname);	
+}
+
+EOSIO_ABI( ballot, (init)(addmember)(propose)(vote)(closepoll)(setwinner))

@@ -11,4 +11,4 @@ PERMISSION=$3
 
 eosiocpp -o ${CONTRACT}.wast ${CONTRACT}.cpp &&
 eosiocpp -g ${CONTRACT}.abi ${CONTRACT}.hpp &&
-cleos --wallet-url http://localhost:8899 set contract ${ACCOUNT} ../${CONTRACT} -p $ACCOUNT@$PERMISSION
+cleos set contract ${ACCOUNT} ../${CONTRACT} -p $ACCOUNT@$PERMISSION

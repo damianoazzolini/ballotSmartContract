@@ -11,7 +11,7 @@ TABLEVOTES="tablevotes"
 CLOSEPOLLACTION="closepoll"
 CONTRACTGRANTER="ballot"
 VOTEFIELD="vote"
-
+BALLOTDIRECTORY="ballotSmartContract"
 
 # script cifratura
 echo "---- Building cypher scripts ----"
@@ -29,14 +29,15 @@ gcc -Wall -Wextra election_result.c -o election_result -lgmp &&
 echo "---- Compiling Smart Contract ---"
 eosiocpp -o ballot.wast ballot.cpp &&
 eosiocpp -g ballot.abi ballot.hpp &&
-python /home/damiano/Desktop/eos/scripts/abi_to_rc/abi_to_rc.py /home/damiano/Desktop/eos/contracts/ballot/ballot.abi &&
+# python /home/damiano/Desktop/eos/scripts/abi_to_rc/abi_to_rc.py /home/damiano/Desktop/eos/contracts/ballot/ballot.abi &&
 
 # carico il contratto
-cleos --wallet-url http://localhost:8899 set contract $CONTRACTGRANTER ../$CONTRACTNAME -p $CONTRACTGRANTER@active &&
+echo "---- Uploading contract ----"
+cleos --wallet-url http://localhost:8899 set contract $CONTRACTGRANTER ../$CONTRACTNAME -p $CONTRACTGRANTER@active
 
 # genero l'account 'ballot' che getisce l'elezione
 echo "---- Creating ballot account ----"
-cleos --wallet-url http://localhost:8899 create account eosio $CONTRACTGRANTER EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 &&
+cleos --wallet-url http://localhost:8899 create account eosio $CONTRACTGRANTER EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9
 
 # inzializzo il contratto
 echo "Nome della votazione: "
@@ -45,7 +46,7 @@ echo "Descrizione della votazione"
 read DESCRIPTION
 
 
-cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $INITACTION '["'"$CONTRACTGRANTER"'","'"$POLLNAME"'","'"$DESCRIPTION"'"]' -p $CONTRACTGRANTER@active 
+cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $INITACTION '["'"$CONTRACTGRANTER"'","'"$POLLNAME"'","'"$DESCRIPTION"'"]' -p $CONTRACTGRANTER@active
 
 # numero di candidati e per ciascuno creo un account
 # meno di 5 perché i nomi degli account possono
@@ -59,23 +60,23 @@ nameC="proposal"
 titolo="proposta "
 descrizione="descrizione proposta "
 
-while [ $nProposals -gt 0 ] 
+while [ $nProposals -gt 0 ]
 do
 	# creo account
-	cleos --wallet-url http://localhost:8899 create account ballot $nameC$nProposals 				EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 &&
-	
+	cleos --wallet-url http://localhost:8899 create account ballot $nameC$nProposals EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 &&
+
 	# creo il permesso
 	cleos --wallet-url http://localhost:8899 set account permission $nameC$nProposals $PROPOSEPERMISSION EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 "active" -p $nameC$nProposals@active &&
-	
+
 	# associo il pemesso all'azione
 	cleos --wallet-url http://localhost:8899 set action permission $nameC$nProposals $CONTRACTNAME $PROPOSEACTION $PROPOSEPERMISSION &&
-	
+
 	# aggiungo il componente
 	cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $ADDMEMBERACTION '["'"$nameC$nProposals"'","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active &&
-	
+
 	# carico la proposta
-	cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $PROPOSEACTION '["'"$nameC$nProposals"'","'"$titolo$nProposals"'","'"$descrizione$nProposals"'","'"$POLLNAME"'"]' -p $nameC$nProposals@$PROPOSEPERMISSION &&
-	
+	cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $PROPOSEACTION '["'"$nameC$nProposals"'","'"$titolo$nProposals"'","'"$descrizione$nProposals"'","'"$POLLNAME"'","'"$nProposals"'"]' -p $nameC$nProposals@$PROPOSEPERMISSION &&
+
 	echo "Created proposal:" $nameC$nProposals
 	let "nProposals=nProposals-1"
 done
@@ -87,33 +88,33 @@ read nVoters
 
 nameV="voter"
 
-while [ $nVoters -gt 0 ] 
+while [ $nVoters -gt 0 ]
 do
 	# creo account
-	cleos --wallet-url http://localhost:8899 create account ballot $nameV$nVoters				EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 &&
-	
+	cleos --wallet-url http://localhost:8899 create account ballot $nameV$nVoters EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 &&
+
 	# creo permesso
 	cleos --wallet-url http://localhost:8899 set account permission $nameV$nVoters $VOTEPERMISSION EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 "active" -p $nameV$nVoters@active &&
-	
+
 	# associo il permesso all'azione
 	cleos --wallet-url http://localhost:8899 set action permission $nameV$nVoters $CONTRACTNAME $VOTEACTION $VOTEPERMISSION &&
-	
+
 	# aggiungo l'account
 	cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $ADDMEMBERACTION '["'"$nameC$nProposals"'","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active &&
-	
+
 	# simulo votazione
 	echo "---- ELENCO PROPOSTE ----"
 		cleos --wallet-url http://localhost:8899 get table ballot ballot proposals | grep title
 		echo "Inserire indice della proposta da votare (0..n): "
 		read index
 		vote=$(./encrypt $index)
-	
-	
+
+
 		if [ $? -eq 0 ]; then
 			echo "Inserire nome della proposta da votare (0..n): "
 			read name
-			
-			cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $VOTEACTION '["'"$nameV$nVoters"'","'"$vote"'","'"$POLLNAME"'"]' -p $nameV$nVoters@$VOTEPERMISSION 
+
+			cleos --wallet-url http://localhost:8899 push action $CONTRACTNAME $VOTEACTION '["'"$nameV$nVoters"'","'"$vote"'","'"$POLLNAME"'"]' -p $nameV$nVoters@$VOTEPERMISSION
 		else
 			echo "ERRORE NELLA CIFRATURA, VOTO NON CARICATO"
 		fi
@@ -133,13 +134,7 @@ else
 fi
 
 cleos --wallet-url http://localhost:8899 get table ballot ballot tablevotes | grep -w -A1 -B1 $POLLNAME | grep -w $VOTEFIELD | sed 's/"vote": "//g' | sed 's/"//g' | tr -d ' ' | tr -d ',' > votes.txt
- 
+
 # cleos --wallet-url http://localhost:8899 get table ballot ballot tablevotes | grep -w "vote" | sed 's/"vote": "//g' | sed 's/"//g' | tr -d ' ' | tr -d ',' > votes.txt
 
 ./election_result
-
-
-
-
-
-

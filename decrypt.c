@@ -19,7 +19,7 @@ void getNumber(char *result, int base) {
 
 int main(int argc, char **argv) {
 	if(argc != 2) {
-		printf("Usage: ./decrypt <encrypted>\n");
+		printf("Usage: ./encrypt <encrypted>\n");
 		exit(-1);
 	}
 

@@ -52,6 +52,10 @@ private:
 		bool is_active = true;
 		bool is_winner_set = false;
 		uint64_t winner_proposal_index;
+        // TODO
+        // add time created_at;
+        // nel cpp
+        // x.created_at = now();
 
 		auto primary_key() const { return id; }
 
@@ -78,9 +82,13 @@ private:
         string description;
 		string pollname;
 		uint64_t index;
+
 		// ho un id ed un index perché tutte le proposte sono salvate nella stessa
 		// tabella quindi hanno tutte un id diverso. Index invece rappresenta
 		// l'indice della proposta all'interno della votazione corrente
+
+        // TODO
+        // add time created_at;
 
         uint64_t primary_key() const { return id; }
 
@@ -102,6 +110,8 @@ private:
     	uint64_t id;
     	string vote;
     	string pollname;
+        // TODO
+        // add time created_at;
 
     	uint64_t primary_key() const { return id; }
 

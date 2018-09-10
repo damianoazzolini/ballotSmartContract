@@ -22,25 +22,25 @@ else
 fi
 
 # add all the accounts
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["voter1","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["votante1","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["voter2","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["votante2","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["voter3","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["votante3","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["voter4","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["votante4","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["voter5","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["votante5","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["proposer1","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["candidato1","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
-cleos push action $CONTRACTNAME $ADDMEMBERACTION '["proposer2","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
+cleos push action $CONTRACTNAME $ADDMEMBERACTION '["candidato2","'"$CONTRACTGRANTER"'","'"$POLLNAME"'"]' -p $CONTRACTGRANTER@active
 sleep .5
 
 if [ $? -ne 0 ]; then

@@ -1,8 +1,7 @@
 #!/bin/bash
 
 CONTRACTNAME="ballot"
-PROPOSEACTION="propose"
-PROPOSEPERMISSION="propose"
+VOTEPERMISSION="vote"
 VOTEACTION="vote"
 GRANTER="ballot"
 
@@ -24,7 +23,7 @@ vote=$(./encrypt $proposal)
 
 echo "Encrypted " $vote
 
-cleos push action $CONTRACTNAME $VOTEACTION '["'"$votername"'","'"$GRANTER"'","'"$vote"'","'"$pollname"'"]' -p $GRANTER@active
+cleos push action $CONTRACTNAME $VOTEACTION '["'"$votername"'","'"$GRANTER"'","'"$vote"'","'"$pollname"'"]' -p $votername@$VOTEPERMISSION
 
 if [ $? -ne 0 ]; then
     echo "Erorr in voting action"

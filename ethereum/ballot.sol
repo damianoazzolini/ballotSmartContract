@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2; // per usare array di string
 // http://remix.ethereum.org/#optimize=true&version=soljson-v0.4.24+commit.e67f0147.js
 contract Ballot {
     struct Voter {
-        uint weight; // peso del voto, incrementato se si è delegati per votare per un'altra persona
+        uint weight; // peso del voto
         bool voted; // vero se ha già votato
         uint vote; // indice del candidato votato
     }
@@ -32,7 +32,6 @@ contract Ballot {
         }
     }
 
-    // from stackoverflow
     // converts string to byte32
     function stringToBytes32(string memory source) pure private returns (bytes32 result) {
         bytes memory tempEmptyStringTest = bytes(source);
@@ -90,7 +89,7 @@ contract Ballot {
         if(proposal >= proposals.length) {
             revert("Proposal does not exists");
         }
-        proposals[proposal].voteCount += sender.weight;
+        proposals[proposal].voteCount ++;
 
     }
 

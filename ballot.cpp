@@ -24,6 +24,7 @@ void ballot::init(account_name granter, const string& pollname, const string& de
         m.member_id = id;
         m.account = granter;
         m.voted = false;
+        m.has_proposed = false;
         m.pollname = pollname;
     });
 
@@ -64,6 +65,7 @@ void ballot::addmember(account_name account, account_name granter, const string&
         m.member_id = id;
         m.account = account;
         m.voted = false;
+        m.has_proposed = false;
         m.pollname = pollname;
     });
 
@@ -83,6 +85,11 @@ void ballot::propose(account_name proposer, const string& title, const string& d
 
     auto proposer_member = Members.find(proposer_id);
     eosio_assert(proposer_member != Members.end(), "Member does not exist");
+    eosio_assert(proposer_member->has_proposed == false, "Member has already proposed");
+
+    Members.modify(proposer_member, _self, [&](auto& m) {
+		m.has_proposed = true;
+	});
 
     auto prop = Proposals.find(proposal_id);
     eosio_assert(prop == Proposals.end(), "Proposal already exists");
@@ -101,7 +108,8 @@ void ballot::propose(account_name proposer, const string& title, const string& d
 
 // OK test
 void ballot::vote(account_name voter, account_name granter, const string& vote, const string& pollname) {
-    require_auth(granter);
+    // require_auth(granter);
+    require_auth(voter);
 
     auto current_poll = Polls.find(stringHash(pollname));
     eosio_assert(current_poll != Polls.end(), "Poll does not exist");

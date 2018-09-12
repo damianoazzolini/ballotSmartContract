@@ -56,11 +56,17 @@ cleos set account permission candidato1 propose EOS6SSHcCaBrmQLPUgUthQ3mD13NktVz
 sleep 0.5
 cleos set action permission candidato1 ballot propose propose
 sleep 0.5
+cleos set account permission candidato1 vote EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 active -p candidato1@active
+sleep 0.5
+cleos set action permission candidato1 ballot vote vote
 
 cleos set account permission candidato2 propose EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 active -p candidato2@active
 sleep 0.5
 cleos set action permission candidato2 ballot propose propose
 sleep 0.5
-echo "Set permissions *propose* for accounts candidato1..2"
+cleos set account permission candidato2 vote EOS6SSHcCaBrmQLPUgUthQ3mD13NktVzPerkJEDSLRDbn8N7jNNG9 active -p candidato2@active
+sleep 0.5
+cleos set action permission candidato2 ballot vote vote
+echo "Set permissions *propose* and *vote* for accounts candidato1..2"
 
 echo "--- FINISH ---"

@@ -7,29 +7,34 @@ contract Ballot {
     struct Voter {
         uint weight; // peso del voto
         bool voted; // vero se ha già votato
-        uint vote; // indice del candidato votato
+        bool has_proposed; // vero se ha già proposto
     }
     struct Proposal {
         uint voteCount; // numero di voti accumulati
         bytes32 name; // nome della proposta
     }
 
+    // per proposals non uso mapping perché non riesco a ciclare sui
+    // mapping, uso un array
     address public chairperson;
     mapping(address => Voter) public voters;
+    bool private is_closed;
 
     Proposal[] public proposals;
 
     constructor(string[] proposalNames) public {
         chairperson = msg.sender;
         voters[chairperson].weight = 1;
+        voters[chairperson].has_proposed = false;
 
         for (uint i = 0; i < proposalNames.length; i++) {
-            bytes32 temp = stringToBytes32(proposalNames[i]);
             proposals.push(Proposal({
-                name: temp,
+                name: stringToBytes32(proposalNames[i]),
                 voteCount: 0
             }));
         }
+
+        is_closed = false;
     }
 
     // converts string to byte32
@@ -62,38 +67,45 @@ contract Ballot {
         return string(bytesStringTrimmed);
     }
 
+    function addProposal(string _name) public {
+        Voter storage sender = voters[msg.sender];
+        require(!sender.has_proposed, "Candidate hs already proposed.");
+        sender.has_proposed = true;
+        for(uint i = 0; i < proposals.length; i++) {
+            if(proposals[i].name == stringToBytes32(_name)) {
+                revert("Proposal already exists");
+            }
+        }
 
-    function giveRightToVote(address voter) public {
-        require(
-            msg.sender == chairperson,
-            "Only chairperson can give right to vote."
-        );
-        require(
-            !voters[voter].voted,
-            "The voter already voted."
-        );
-        require(voters[voter].weight == 0);
-        voters[voter].weight = 1;
+        proposals.push(Proposal({
+            name: stringToBytes32(_name),
+            voteCount: 0
+        }));
     }
 
-    function vote(uint proposal) public {
+    function vote(string _proposal) public {
         Voter storage sender = voters[msg.sender];
         require(!sender.voted, "Already voted.");
         sender.voted = true;
-        sender.vote = proposal;
+        uint i = 0;
 
-        // chontrollo che eista prima di effettuare l'operazione
-        // senza controllo l'operazione fallirebbe comunque ma non
-        // riesco ad eseguirla perché dice
-        // "gas required exceeds allowance or always failing transaction"
-        if(proposal >= proposals.length) {
-            revert("Proposal does not exists");
+        for(i = 0; i < proposals.length; i++) {
+            if(proposals[i].name == stringToBytes32(_proposal)) {
+                proposals[i].voteCount ++;
+                break;
+            }
         }
-        proposals[proposal].voteCount ++;
+        require(i != proposals.length,"Proposal does not exists");
+    }
 
+    function closeElection() public {
+        require(!is_closed,"Already closed");
+        require(msg.sender == chairperson,"Only the chairperson can close the election");
+        is_closed = true;
     }
 
     function winningProposal() public view returns (string _winnerName, uint8 _indexWinningProposal, uint _votesCount) {
+        require(is_closed,"Pool is not closed");
         uint winningVoteCount = 0;
         for (uint8 prop = 0; prop < proposals.length; prop++) {
             if (proposals[prop].voteCount > winningVoteCount) {

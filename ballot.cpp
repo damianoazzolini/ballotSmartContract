@@ -208,25 +208,28 @@ void ballot::cleartables(account_name granter, const string& pollname, const str
     eosio_assert(granter_member != Members.end(), "Granter does not exist");
 
     if(tablename == "Tablevotes" || tablename == "All") {
-        for(auto vote_iterator = Tablevotes.begin(); vote_iterator != Tablevotes.end(); vote_iterator++) {
-        	vote_iterator = Tablevotes.erase(vote_iterator);
-    	}
+        auto vote_iterator = Tablevotes.begin();
+        while (vote_iterator != Tablevotes.end()) {
+            vote_iterator = Tablevotes.erase(vote_iterator);
+        }
+        print("Cleared table Tablevotes");
     }
-    print("Cleared table Tablevotes");
 
     if(tablename == "Members" || tablename == "All") {
-        for(auto member_iterator = Members.begin(); member_iterator != Members.end(); member_iterator++) {
-        	member_iterator = Members.erase(member_iterator);
-    	}
+        auto member_iterator = Members.begin();
+        while (member_iterator != Members.end()) {
+            member_iterator = Members.erase(member_iterator);
+        }
+        print("Cleared table Members");
     }
-    print("Cleared table Members");
 
     if(tablename == "Proposals" || tablename == "All") {
-        for(auto proposal_iterator = Proposals.begin(); proposal_iterator != Proposals.end(); proposal_iterator++) {
-        	proposal_iterator = Proposals.erase(proposal_iterator);
-    	}
+        auto proposal_iterator = Proposals.begin();
+        while (proposal_iterator != Proposals.end()) {
+            proposal_iterator = Proposals.erase(proposal_iterator);
+        }
+        print("Cleared table Proposals");
     }
-    print("Cleared table Proposals");
 }
 
 EOSIO_ABI( ballot, (init)(addmember)(propose)(vote)(closepoll)(setwinner)(cleartables))

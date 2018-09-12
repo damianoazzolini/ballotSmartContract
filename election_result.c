@@ -97,7 +97,7 @@ void decrypt(char *value) {
 		strncpy(dest,&pad[i],3);
 		dest[3] = '\0';
 		reverseString(dest,rev);
-		printf("Candidato %d: %s voti\n",i/3,rev);
+		printf("Candidato %d: %s voti\n - ",i/3,rev);
 	}
 
 	mpz_clear(c0);

@@ -1,0 +1,249 @@
+<!--
+sha512-1+9QoHM15or8AQMLftEEACcwATU38fqGn1q8NiZ6ybA6fFGWSrdx7ppR859TEwYQAASIUpi7fd8UzQZfqLA6pQ== lib/eos.js
+sha512-IS9vyI+sMK7MYNJgHj9G8Li21QYs59sRW/Nyzi+dKUh6bF6OfpOnvzSCTiegWftY1ozOmmyacCH2QIJpZgbuKw== lib/eos.min.js
+sha512-g905cUn6OWkdrFTNXd87/ZvTpOHKM0/sOhcGsnS+BFQZ0pp2+KnO6SWg/HdgB/tDvOEm6zSY8p8+/H99cteGPQ== lib/eos.min.js.map
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/eosjs@16.0.6/lib/eos.min.js"
+        integrity="sha512-IS9vyI+sMK7MYNJgHj9G8Li21QYs59sRW/Nyzi+dKUh6bF6OfpOnvzSCTiegWftY1ozOmmyacCH2QIJpZgbuKw=="
+        crossorigin="anonymous">
+    </script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+
+    </head>
+
+    <script>
+
+    // NB in keyProvider ho messo la priv key di tutti gli account
+    // crearne una nuova magari apoosta per questa situazione
+
+    const config = {
+        chainId: null, // 32 byte (64 char) hex string
+        keyProvider: ['5KQZrWLjcyxFmnmRBDWkvH498ganvMXEqhBDn8PnpwYKHXb51FK'], // WIF string or array of keys..
+        httpEndpoint: 'http://127.0.0.1:8888',
+        expireInSeconds: 60,
+        broadcast: true,
+        verbose: false, // API activity
+        sign: true
+    };
+
+    const eos = Eos(config);
+
+    // eos.getInfo((error, result) => { console.log(error, result) })
+
+    /*
+    eos
+    .contract('inventory')
+    .then((contract) => {
+    contract.insertinvent( {sender:"richard",item:"laptop"},
+    { scope: 'inventory', authorization: ['richard'] })
+    })
+    */
+
+    function votesList() {
+        eos.getTableRows({
+            code:'ballot',
+            scope:'ballot',
+            table:'tablevotes',
+            json: true,
+        }).then(function(result) {
+            document.getElementById("votes").innerHTML = createTableVotes(result);
+            // console.log("controller unmatched: ", result);
+        });
+    }
+
+    function membersList() {
+        eos.getTableRows({
+            code:'ballot',
+            scope:'ballot',
+            table:'members',
+            json: true,
+        }).then(function(result) {
+            document.getElementById("members").innerHTML = createTableMembers(result);
+            // console.log("controller unmatched: ", result);
+        });
+    }
+
+    function proposalsList() {
+        var temp;
+        eos.getTableRows({
+            code:'ballot',
+            scope:'ballot',
+            table:'proposals',
+            json: true,
+        }).then(function(result) {
+            document.getElementById("proposals").innerHTML = createTableProposals(result);
+        });
+    }
+
+    function createTableProposals(json, classes) {
+        var table = '<table class="table table-striped"><thead><tr><th>Name</th><th>Description</th><th>Proposer</th><th>Pollname</th><th>Index</th></tr></thead><tbody>';
+        for(const s of json.rows) {
+            table = table + "<tr>" +
+                "<td>" + s.title + "</td>" +
+                "<td>" + s.description + "</td>" +
+                "<td>" + s.account + "</td>" +
+                "<td>" + s.pollname + "</td>" +
+                "<td>" + s.index + "</td>" + "</tr>";
+        }
+        table + "</tbody>"
+
+        return table;
+    }
+
+    function createTableVotes(json, classes) {
+        var table = '<table class="table table-striped"><thead><tr><th>Vote</th><th>Pollname</th></tr></thead><tbody>';
+        for(const s of json.rows) {
+            table = table + "<tr>" +
+                "<td>" + s.vote + "</td>" +
+                "<td>" + s.pollname + "</td>" + "</tr>";
+        }
+        table + "</tbody>"
+
+        return table;
+    }
+
+    function createTableMembers(json, classes) {
+        var table = '<table class="table table-striped"><thead><tr><th>Account</th><th>Voted</th><th>Pollname</th></tr></thead><tbody>';
+        for(const s of json.rows) {
+            table = table + "<tr>" +
+                "<td>" + s.account + "</td>" +
+                "<td>" + s.voted + "</td>" +
+                "<td>" + s.pollname + "</td>" + "</tr>";
+        }
+        table + "</tbody>"
+
+        return table;
+    }
+
+    window.setInterval(function(){
+        proposalsList();
+        membersList();
+        votesList();
+    }, 5000);
+
+    window.onload = proposalsList();
+    window.onload = membersList();
+    window.onload = votesList();
+
+    /*
+    function getInfoEth() {
+        var web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+        document.getElementById("info").innerHTML = web3.eth.accounts;
+    }
+    */
+
+    // NB INUSABILE LENTISSIMA
+    function powerMod(base,exp,modulo) {
+        var result = 0;
+
+        for(e = 1 ; e < exp; e++) {
+            result = (result*base) % modulo;
+        }
+
+        return result;
+    }
+
+    // NB INUSABILE LENTISSIMA
+    function encryptPaillier(vote) {
+        var n = 32193876079309559; //pq
+        var g = 32193876079309560;
+        var n2 = n*n;
+        var r = Math.floor(Math.random()*123456789); // numero random artigianale
+        var result = (powerMod(g,vote,n2)*powerMod(r,n,n2)) % n2;
+        console.log(result);
+        return result;
+    }
+
+    function test() {
+        options = {
+            authorization: 'ballot',
+        }
+        eos.contract('ballot').then(function(myaccount) {
+            myaccount.vote('ballot','ballot','1','votazione',options).then(function(result) {
+                console.log(result);
+            }).catch(e =>{
+                document.getElementById("errorfield").innerHTML = e;
+            });
+        }).catch(e => {
+            document.getElementById("errorfield").innerHTML = e;
+        });
+    }
+
+    function vote() {
+        var voter = document.getElementById("voter").value;
+        var vote = document.getElementById("vote").value;
+        var pollname = document.getElementById("pollname").value;
+        // vote = encryptPaillier(vote);
+
+        options = {
+            authorization: voter,
+        }
+        eos.contract('ballot').then(function(myaccount) {
+            myaccount.vote(voter,voter,vote,pollname,options).then(function(result) {
+                console.log(result);
+                document.getElementById("voter").value = "";
+                document.getElementById("vote").value = "";
+                document.getElementById("pollname").value = "";
+            }).catch(e => {
+                document.getElementById("errorfield").innerHTML = e;
+                window.alert(e);
+            });
+        }).catch(e => {
+            document.getElementById("errorfield").innerHTML = e;
+            window.alert(e);
+        });
+        console.log('VOTED!');
+    }
+
+    </script>
+</head>
+<body>
+<main role="main" class="container">
+    <h1>VOTAZIONE</h1>
+
+    <!--
+    <button onclick="votesList()"> Get Votes </button>
+    <button onclick="membersList()"> Get Members </button>
+    <button onclick="proposalsList()"> Get Proposals </button>
+    -->
+
+    <hr>
+    <h1>Proposte</h1>
+    <p id="proposals"></p>
+    <hr>
+    <h1>Componenti (candidati + votanti)</h1>
+    <p id="members"></p>
+    <hr>
+    <h1>Elenco voti</h1>
+    <p id="votes"></p>
+    <hr>
+
+    <h1>Vote form</h1>
+    <div>
+        <div class="form-group">
+            <label for="voter">Voter:</label>
+            <input class="form-control" id="voter" placeholder="Insert Voter Name" name="voter">
+        </div>
+        <div class="form-group">
+            <label for="vote">Vote:</label>
+            <input class="form-control" id="vote" placeholder="Enter Encrypted Vote" name="vote">
+        </div>
+        <div class="form-group">
+            <label for="pollname">Pollname:</label>
+            <input class="form-control" id="pollname" placeholder="Enter Pollname" name="pollname">
+        </div>
+        <button class="btn btn-default" onclick="vote()">Vote</button>
+    </div>
+
+    <hr>
+    <p id="errorfield"></p>
+
+</main>
+</body>
+</html>

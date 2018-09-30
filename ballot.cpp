@@ -1,301 +1,235 @@
 #include "ballot.hpp"
 
+// OK TESTED
+void ballot::init(account_name granter, const string& pollname, const string& description) {
+    require_auth(granter);
 
-/*****************************************************************************
- *                      PUBLIC MEMBER FUNCTIONS
- ****************************************************************************/
+    auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll == Polls.end(), "Poll already exists");
 
-void ballot::init(account_name appKey) {
-    // require_auth(_self);
-    // require_auth(appKey);
+    Polls.emplace(_self, [&](auto& p) {
+    	p.id = stringHash(pollname);
+    	p.title = pollname;
+    	p.description = description;
+    	p.is_active = true;
+    });
+    print("Poll initialized ", pollname);
 
-    /* First Member Ever Created */
-    uint64_t id = accountHash(appKey);
-
-    /* Instantiate the BallotSettings Singleton */
-    BallotSettings(code, _self).set(Settings{appKey}, _self);
-
-    /* Emplce the first member; the creator */
-    /* TODO: consider refactoring this to send and INLINE_ACTION to 
-    *  'addmember'  */
-    auto creator = Members.emplace(_self, [&](auto& m) {
+    uint64_t id = stringHash(to_string(granter)+pollname);
+    /*
+    Dovrei inserire il granter come nuovo member senza inline action perché
+    addmember richiede che il granter esista già
+    */
+    Members.emplace(_self, [&](auto& m) {
         m.member_id = id;
-        m.account = appKey;
-        m.weight = 0;
-        m.granter = appKey;
-        m.invite_permission = true;
+        m.account = granter;
+        m.voted = false;
+        m.has_proposed = false;
+        m.pollname = pollname;
     });
 
-    print("Contract Initialized by ", name{appKey});
+	// inline action
+	// action(permissionlevel, contract_deployer, action, data)
+	// action(vector<permission_level>(),N(ballot),N(addmember), make_tuple(appKey,appKey)).send();
+
+    print("\nGranter ", name{granter}, " created for ", pollname);
 }
 
-void ballot::addmember(account_name account, account_name granter,
-                       uint32_t     weight, bool invite_permission) {
-    // require_auth(appKey());
+// OK test
+void ballot::addmember(account_name account, account_name granter, const string& pollname) {
+    require_auth(granter);
     // require_auth(account);
-    // require_auth(granter);
 
-    uint64_t id = accountHash(account);
-    uint64_t granter_id = accountHash(granter);
+	// chiave primaria concatenazione account e pollname
+	// per poter avere lo stesso account in due poll
+	// devo convertire in stringhe poi riconvertire in uint64_t
+	// per evitare overflow facendo la somma account+stringHash(pollname)
+    uint64_t id = stringHash(to_string(account)+pollname);
+    uint64_t granter_id = stringHash(to_string(granter)+pollname);
 
-    /* Error Handling */
+    auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist");
+    eosio_assert(current_poll->is_active == true, "Poll is closed");
+
     auto granter_member = Members.find(granter_id);
     eosio_assert(granter_member != Members.end(), "Granter does not exist");
-    eosio_assert(granter_member->invite_permission,
-                 "You do not have permission to add a new member!");
 
     auto member = Members.find(id);
-    eosio_assert(member == Members.end(), "Member already exists!");
+    if(member != Members.end())
+    	eosio_assert(member->pollname != pollname, "Member already exists for this poll");
+
+    // cerco un componente poi controllo se è già associato alla votazione
 
     /* Create New Member */
     Members.emplace(_self, [&](auto& m) {
         m.member_id = id;
-        m.account   = account;
-        m.weight    = weight;
-        m.granter   = granter;
-        m.invite_permission = invite_permission;
+        m.account = account;
+        m.voted = false;
+        m.has_proposed = false;
+        m.pollname = pollname;
     });
 
-    print("New Member Added: ", name{account});
+    print("New Member Added: ", name{account}, " for ", pollname);
 }
 
-/*
-void ballot::rmmember(account_name account) {
-    // require_auth(appKey());
-    // require_auth(account);
+// OK test
+void ballot::propose(account_name proposer, const string& title, const string& description, const string& pollname, uint64_t index) {
+    require_auth(proposer);
 
-    uint64_t id = accountHash(account);
+    uint64_t proposer_id = stringHash(to_string(proposer)+pollname);
+    uint64_t proposal_id = stringHash(title+pollname);
 
-    auto itr = Members.find(id);
-
-    Members.erase(itr);
-}
-*/
-
-void ballot::propose(account_name proposer, const string& title, const string& description) {
-    // require_auth(appKey());
-    // require_auth(proposer);
-
-    uint64_t proposer_id = accountHash(proposer);
-    uint64_t proposal_id = murmur(title);
-
-    // get 'proposer' member
-    auto proposer_member = Members.find(proposer_id);
-    eosio_assert(proposer_member != Members.end(), "Member does not exist!");
-
-    // check that proposal is new or modify existing
-    auto proposal = Proposals.find(proposal_id);
-    if (proposal == Proposals.end()) {
-        print("Creating new proposal");
-        Proposals.emplace(_self, [&](auto& p) {
-            p.id = proposal_id;
-            p.account = proposer_member->account;
-            p.title = title;
-            p.description = description;
-            p.approved = false;
-        });
-    } else {
-        print("Modifing existing proposal");
-        eosio_assert(proposal->id == proposal_id, "Proposal ID mismatch");
-        Proposals.modify(proposal, 0, [&](auto& p) {
-            p.description = description;
-        });
-    }
-
-}
-
-/*
-void ballot::rmproposal(account_name proposal_owner, const string& title) {
-    // require_auth(appKey());
-    // require_auth(proposal_owner);
-
-    uint64_t proposer_id = accountHash(proposal_owner);
-    uint64_t proposal_id = murmur(title);
+    auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist");
+    eosio_assert(current_poll->is_active == true, "Poll is closed");
 
     auto proposer_member = Members.find(proposer_id);
     eosio_assert(proposer_member != Members.end(), "Member does not exist");
+    eosio_assert(proposer_member->has_proposed == false, "Member has already proposed");
 
-    auto proposal = Proposals.find(proposal_id);
-    eosio_assert(proposal != Proposals.end(), "Proposal does not exist");
+    Members.modify(proposer_member, _self, [&](auto& m) {
+		m.has_proposed = true;
+	});
 
-    Proposals.erase(proposal);
+    auto prop = Proposals.find(proposal_id);
+    eosio_assert(prop == Proposals.end(), "Proposal already exists");
 
-    print("Proposal: ", proposal->title.c_str(), " removed from the database\n");
+    Proposals.emplace(_self, [&](auto& p) {
+        p.id = proposal_id;
+        p.account = proposer_member->account;
+        p.title = title;
+        p.description = description;
+        p.pollname = pollname;
+        p.index = index;
+    });
 
+	print("Created new proposal for ", pollname, " called ", title, " index ", index);
 }
-*/
 
-void ballot::addvote(account_name voter, const string& proposal_title, const string& vote) {
-    // require_auth(appKey());
-    // require_auth(voter);
+// OK test
+void ballot::vote(account_name voter, account_name granter, const string& vote, const string& pollname) {
+    // require_auth(granter);
+    require_auth(voter);
 
-    // Find the member 'voter'
-    uint64_t voter_id = accountHash(voter);
-    uint64_t proposal_id = murmur(proposal_title);
+    auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist");
+    eosio_assert(current_poll->is_active == true, "Poll is closed");
+
+    uint64_t voter_id = stringHash(to_string(voter)+pollname);
 
     auto member = Members.find(voter_id);
-    eosio_assert(member != Members.end(), "Member does not exists!");
+    eosio_assert(member != Members.end(), "Member does not exist");
+    eosio_assert(member->voted == false, "Member has already voted");
 
     // Find the proposal by 'proposal_id'
-    auto proposal = Proposals.find(proposal_id);
-    eosio_assert(proposal != Proposals.end(), "Proposal does not exist");
+    // auto prop = Proposals.find(proposal_id);
+    // eosio_assert(prop != Proposals.end(), "Proposal does not exist");
 
-    // Check to make sure member hasn't already voted for this proposal
-    auto vote_itr = proposal->votes.begin();
+	Members.modify(member, _self, [&](auto& m) {
+		m.voted = true;
+	});
 
-    for (; vote_itr != proposal->votes.end(); ++vote_itr) {
-        //print("itr  : ", name{vote_itr->voter_name}, "\n");
-        //print("Input: ", name{voter}, "\n");
-        eosio_assert(vote_itr->voter_name != voter, "Member already voted for this proposal");
-    }
-
-    // push a vote to the vote vector in the proposal
-    Proposals.modify(proposal, 0, [&](auto& p) {
-        // Create the new vote
-        Vote new_vote = { 
-            .vote = member->weight,
-            .voter_name = member->account
-        };
-       p.votes.push_back(new_vote);
-    });
-    
     // aggiungo un record nella tabella Tablevotes
     Tablevotes.emplace(_self, [&](auto& t) {
         t.id = voter_id;
         t.vote = vote;
-        t.voter = voter;
+        t.pollname = pollname;
     });
 
-    // print("'", name{voter}, "' voted for '", proposal->title.c_str(), "'\n");
-    
-    print("'", name{voter}, "' voted '", vote, "'\n");
+    print(name{voter}, " voted in ", pollname);
 }
 
-/*
-void ballot::rmvote(account_name voter, const string& proposal_title) {
-    // require_auth(appKey());
-    // require_auth(voter);
+// OK TESTED
+void ballot::closepoll(account_name granter, const string& pollname) {
+	require_auth(granter);
 
-    bool is_vote_found = false;
+	uint64_t granter_id = stringHash(to_string(granter)+pollname);
+	auto granter_member = Members.find(granter_id);
+    eosio_assert(granter_member != Members.end(), "Granter does not exist");
 
-    uint64_t voter_id = accountHash(voter);
-    uint64_t proposal_id = murmur(proposal_title);
+	auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist");
 
-    // find voter
-    auto member = Members.find(voter_id);
-    eosio_assert(member != Members.end(), "Member does not exists!");
+    eosio_assert(current_poll->is_active == true, "Poll is already closed");
 
-    // Find the proposal
-    auto proposal = Proposals.find(proposal_id);
-    eosio_assert(proposal != Proposals.end(), "Proposal does not exist");
+	Polls.modify(current_poll, _self, [&](auto& p) {
+		p.is_active = false;
+	});
 
-    // find vote inside proposal
-    Vote vote_to_find = {
-        .vote = member->weight,
-        .voter_name = member->account
-    };
+	// conto i voti
+	uint64_t vote_number = 0;
+	for(auto vote_iterator = Tablevotes.begin(); vote_iterator != Tablevotes.end(); vote_iterator++) {
+    	if(vote_iterator->pollname == pollname)
+    		vote_number++;
+	}
 
-    
-    auto vote_itr = proposal->votes.begin();
-    while( (vote_itr != proposal->votes.end()) && !is_vote_found) {
-        //print("vote_itr: ", name{vote_itr->voter_name}, "\n");
-        if (vote_itr->voter_name == voter) {
-            is_vote_found = true;
-
-            print("Removing vote for '", name{vote_itr->voter_name}, "'\n");
-
-            Proposals.modify(proposal, 0, [&](auto& p) {
-                p.votes.erase(vote_itr);
-            });
-            return;
-        }
-        ++vote_itr;
-    }
-
-    eosio_assert(0, "Member has not voted for this proposals!");
-
-}
-*/
-
-void ballot::countvotes(const string& title) {
-    // require_auth(appKey());
-
-    uint64_t proposal_id = murmur(title);
-
-    // find proposal
-    auto proposal = Proposals.find(proposal_id);
-    eosio_assert(proposal != Proposals.end(), "Proposal does not exist");
-
-    // count all votes cast
-    uint64_t total_votes_cast = 0;
-    for (auto vote_itr = proposal->votes.begin(); vote_itr != proposal->votes.end(); ++vote_itr) {
-        total_votes_cast += vote_itr->vote;
-    }
-    print("Total votes cast for this proposal: ", total_votes_cast, "\n");
-
-    // count the total voting power in existance
-    uint64_t total_voting_weight = 0;
-    for (auto member = Members.begin(); member != Members.end(); ++member) {
-        total_voting_weight += member->weight;
-    }
-    print("Total voting weight in existance: ", total_voting_weight, "\n");
-
-    // check to approve
-    if (check_for_approval(total_votes_cast, total_voting_weight, 0.75 /* Test */)) {
-        Proposals.modify(proposal, 0, [&](auto& p) {
-            p.approved = true;
-        });
-        print("APPROVED!\n");
-    }
-    else {
-        Proposals.modify(proposal, 0, [&](auto& p) {
-            p.approved = false;
-        });
-        print("NOT APPROVED!\n");
-    }
+	print("Closed ", pollname, ". Number of votes: ", vote_number);
 }
 
-/*****************************************************************************
- *                      PRIVATE MEMBER FUNCTIONS
- ****************************************************************************/
+void ballot::setwinner(account_name granter, const string& pollname, uint64_t winner_proposal_index) {
+	require_auth(granter);
 
-bool ballot::check_for_approval(const uint64_t& votes_cast,
-                                const uint64_t& votes_total,
-                                const double&   percentage_needed) {
-    print("Percentage needed: ", percentage_needed, "\n");
-    print("Votes needed: ", votes_total * percentage_needed, "\n");
+	uint64_t granter_id = stringHash(to_string(granter)+pollname);
+	auto granter_member = Members.find(granter_id);
+    eosio_assert(granter_member != Members.end(), "Granter does not exist");
 
-    return (votes_cast > (votes_total * percentage_needed)) ? true : false;
+	auto current_poll = Polls.find(stringHash(pollname));
+    eosio_assert(current_poll != Polls.end(), "Poll does not exist");
+
+    eosio_assert(current_poll->is_winner_set == false, "Winner already set");
+    eosio_assert(current_poll->is_active == true, "Poll stil open");
+
+    // TODO
+    // controllo se la proposta con quell'indice esiste per quel poll
+    /*
+    auto proposal_itr;
+    for(proposal_itr = Proposals.begin(); proposal_itr != Proposals.end(); proposal_itr++) {
+    	if((proposal_itr->index == winner_proposal_index) && (proposal_itr->pollname == pollname))
+    		break;
+    }
+
+
+    eosio_assert(proposal_itr != Proposals.end(), "Proposal with selected index does not exist for this poll");
+    */
+
+    Polls.modify(current_poll, _self, [&](auto& p) {
+		p.is_winner_set = true;
+		p.winner_proposal_index = winner_proposal_index;
+	});
+
+	print("Winner set for poll ", pollname);
 }
 
-/*ballot::Member ballot::get_member(account_name voter) {
-    auto member = ballot::Members.find(voter);
-    eosio_assert(member =! ballot::Members.end(), "Member doesn't exist");
-
-    return *member;  // member object itr points to
-}*/
-
-/*Member ballot::create_member(account_name account, account_name granter,
-                             uint32_t     weight, bool invite_permission) {
-    require_auth(account);
+void ballot::cleartables(account_name granter, const string& pollname, const string& tablename) {
     require_auth(granter);
 
-    auto member = Members.find(account);
-    eosio_assert(member == Members.end(), "Memember already exists!");
-    eosio_assert(granter.invite_permission,
-                 "You do not have permission to add a new member!");
-    eosio_assert(weight >= 0, "Weight must be a positive integer");
+    uint64_t granter_id = stringHash(to_string(granter)+pollname);
+	auto granter_member = Members.find(granter_id);
+    eosio_assert(granter_member != Members.end(), "Granter does not exist");
 
-    // Create New Member
-    auto new_member = Members.emplace(_self, [&](auto& m) {
-        m.account = account;
-        m.weight = weight;
-        m.granter = granter;
-        m.invite_permission = invite_permission;
-    });
+    if(tablename == "Tablevotes" || tablename == "All") {
+        auto vote_iterator = Tablevotes.begin();
+        while (vote_iterator != Tablevotes.end()) {
+            vote_iterator = Tablevotes.erase(vote_iterator);
+        }
+        print("Cleared table Tablevotes");
+    }
 
-    return *new_member;
-}*/
+    if(tablename == "Members" || tablename == "All") {
+        auto member_iterator = Members.begin();
+        while (member_iterator != Members.end()) {
+            member_iterator = Members.erase(member_iterator);
+        }
+        print("Cleared table Members");
+    }
 
-// EOSIO_ABI( ballot, (init)(addmember)(rmmember)(propose)(rmproposal)(addvote)(rmvote)(countvotes) )
-EOSIO_ABI( ballot, (init)(addmember)(propose)(addvote)(countvotes) )
+    if(tablename == "Proposals" || tablename == "All") {
+        auto proposal_iterator = Proposals.begin();
+        while (proposal_iterator != Proposals.end()) {
+            proposal_iterator = Proposals.erase(proposal_iterator);
+        }
+        print("Cleared table Proposals");
+    }
+}
+
+EOSIO_ABI( ballot, (init)(addmember)(propose)(vote)(closepoll)(setwinner)(cleartables))

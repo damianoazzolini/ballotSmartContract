@@ -1,0 +1,5 @@
+./create_accounts
+./buildscript $ACCOUNTNAME $CONTRACTNAME active
+./init
+./propose
+./vote
